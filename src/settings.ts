@@ -10,6 +10,7 @@ export interface TurboSettings {
 	sortOrder: SortOrder;
 	openOnSingleClick: boolean;
 	expandFoldersByDefault: boolean;
+	showInLeftSidebar: boolean;
 }
 
 export const DEFAULT_SETTINGS: TurboSettings = {
@@ -18,6 +19,7 @@ export const DEFAULT_SETTINGS: TurboSettings = {
 	sortOrder: "name-asc",
 	openOnSingleClick: false,
 	expandFoldersByDefault: true,
+	showInLeftSidebar: false,
 };
 
 export function normalizeExtensionsInput(raw: string): string[] {
@@ -133,6 +135,19 @@ export class TurboSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.openOnSingleClick = value;
 						await this.plugin.saveSettings();
+					}),
+			);
+
+		new Setting(containerEl)
+			.setName("Show panel in left sidebar")
+			.setDesc("Show the external files panel in the left sidebar (next to the file explorer) instead of the right sidebar. The panel will move immediately.")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.showInLeftSidebar)
+					.onChange(async (value) => {
+						this.plugin.settings.showInLeftSidebar = value;
+						await this.plugin.saveSettings();
+						await this.plugin.movePanelToSide();
 					}),
 			);
 	}

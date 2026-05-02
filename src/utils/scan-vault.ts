@@ -12,6 +12,10 @@ export function buildFileTree(app: App, settings: TurboSettings): FolderNode {
 		if (!settings.showHiddenFolders && hasHiddenSegment(f.path)) continue;
 		matched.push(f);
 	}
+	console.debug(
+		`[turbo-workflow] vault: ${allFiles.length} files total, ${matched.length} matched` +
+			` (extensions: ${[...exts].join(", ")}, showHidden: ${settings.showHiddenFolders})`,
+	);
 
 	const root: FolderNode = { kind: "folder", name: "", path: "", children: [] };
 	const folderIndex = new Map<string, FolderNode>();

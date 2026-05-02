@@ -4,9 +4,9 @@ import { CMD_OPEN_PANEL, CMD_REFRESH_PANEL } from "../utils/constants";
 export function registerCommands(plugin: TurboPlugin): void {
 	plugin.addCommand({
 		id: CMD_OPEN_PANEL,
-		name: "Open external files panel",
+		name: "Toggle external files panel",
 		callback: () => {
-			void plugin.activateView();
+			void plugin.toggleView();
 		},
 	});
 

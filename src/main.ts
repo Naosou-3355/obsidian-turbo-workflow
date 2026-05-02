@@ -28,8 +28,8 @@ export default class TurboPlugin extends Plugin {
 
 		this.registerView(VIEW_TYPE_OFFICE_FILES, (leaf) => new OfficeFilesView(leaf, this));
 
-		this.addRibbonIcon(RIBBON_ICON, "Open external files panel", () => {
-			void this.activateView();
+		this.addRibbonIcon(RIBBON_ICON, "Toggle external files panel", () => {
+			void this.toggleView();
 		});
 
 		registerCommands(this);
@@ -48,6 +48,16 @@ export default class TurboPlugin extends Plugin {
 		// or the leaf is reset to its default location on next load.
 	}
 
+	async toggleView(): Promise<void> {
+		const { workspace } = this.app;
+		const [existing] = workspace.getLeavesOfType(VIEW_TYPE_OFFICE_FILES);
+		if (existing) {
+			existing.detach();
+			return;
+		}
+		await this.activateView();
+	}
+
 	async activateView(): Promise<void> {
 		const { workspace } = this.app;
 		const [existing] = workspace.getLeavesOfType(VIEW_TYPE_OFFICE_FILES);
@@ -55,9 +65,20 @@ export default class TurboPlugin extends Plugin {
 			await workspace.revealLeaf(existing);
 			return;
 		}
-		const leaf = workspace.getRightLeaf(false) ?? workspace.getLeaf(false);
+		const leaf = this.settings.showInLeftSidebar
+			? (workspace.getLeftLeaf(false) ?? workspace.getLeaf(false))
+			: (workspace.getRightLeaf(false) ?? workspace.getLeaf(false));
 		await leaf.setViewState({ type: VIEW_TYPE_OFFICE_FILES, active: true });
 		await workspace.revealLeaf(leaf);
+	}
+
+	async movePanelToSide(): Promise<void> {
+		const { workspace } = this.app;
+		const [existing] = workspace.getLeavesOfType(VIEW_TYPE_OFFICE_FILES);
+		if (existing) {
+			existing.detach();
+			await this.activateView();
+		}
 	}
 
 	async loadSettings(): Promise<void> {
