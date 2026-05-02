@@ -21,7 +21,7 @@ export class OfficeFilesView extends ItemView {
 	}
 
 	getDisplayText(): string {
-		return "Office files";
+		return "Nao's turbo workflow";
 	}
 
 	getIcon(): string {
@@ -40,6 +40,7 @@ export class OfficeFilesView extends ItemView {
 
 	refresh(): void {
 		if (!this.rootEl) return;
+		const allFiles = this.app.vault.getFiles();
 		const tree = buildFileTree(this.app, this.plugin.settings);
 		const handlers: TreeHandlers = {
 			onFileClick: (file, row) => {
@@ -58,7 +59,10 @@ export class OfficeFilesView extends ItemView {
 			isCollapsed: (path) => this.isFolderCollapsed(path),
 			isSelected: (path) => path === this.selectedPath,
 		};
-		renderTree(this.rootEl, tree, handlers);
+		renderTree(this.rootEl, tree, handlers, {
+			totalFiles: allFiles.length,
+			extensions: this.plugin.settings.fileExtensions,
+		});
 	}
 
 	private isFolderCollapsed(path: string): boolean {

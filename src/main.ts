@@ -55,8 +55,7 @@ export default class TurboPlugin extends Plugin {
 			await workspace.revealLeaf(existing);
 			return;
 		}
-		const leaf = workspace.getRightLeaf(false);
-		if (!leaf) return;
+		const leaf = workspace.getRightLeaf(false) ?? workspace.getLeaf(false);
 		await leaf.setViewState({ type: VIEW_TYPE_OFFICE_FILES, active: true });
 		await workspace.revealLeaf(leaf);
 	}

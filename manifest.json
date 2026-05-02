@@ -1,7 +1,7 @@
 {
 	"id": "obsidian-turbo-workflow",
-	"name": "Turbo workflow",
-	"version": "1.0.0",
+	"name": "Nao's Turbo Workflow",
+	"version": "1.0.1",
 	"minAppVersion": "1.4.0",
 	"description": "Browse Office and other non-markdown files inside the vault and open them in their default external application.",
 	"author": "Naosou",

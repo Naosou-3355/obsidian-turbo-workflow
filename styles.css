@@ -48,5 +48,10 @@
 .turbo-office-view .turbo-empty {
 	color: var(--text-muted);
 	padding: var(--size-4-2);
-	font-style: italic;
+}
+
+.turbo-office-view .turbo-empty-hint {
+	font-size: var(--font-ui-smaller);
+	margin-top: var(--size-2-1);
+	opacity: 0.8;
 }

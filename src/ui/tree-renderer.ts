@@ -9,13 +9,26 @@ export interface TreeHandlers {
 	isSelected(path: string): boolean;
 }
 
-export function renderTree(container: HTMLElement, root: FolderNode, handlers: TreeHandlers): void {
+export function renderTree(
+	container: HTMLElement,
+	root: FolderNode,
+	handlers: TreeHandlers,
+	diagnostics?: { totalFiles: number; extensions: string[] },
+): void {
 	container.empty();
 	if (root.children.length === 0) {
-		container.createDiv({
-			cls: "turbo-empty",
-			text: "No matching files. Configure extensions in plugin settings.",
-		});
+		const wrap = container.createDiv({ cls: "turbo-empty" });
+		wrap.createDiv({ text: "No matching files found in vault." });
+		if (diagnostics) {
+			wrap.createDiv({
+				cls: "turbo-empty-hint",
+				text: `Vault: ${diagnostics.totalFiles} file(s) total. Looking for: ${diagnostics.extensions.join(", ") || "(none configured)"}`,
+			});
+			wrap.createDiv({
+				cls: "turbo-empty-hint",
+				text: "Add Office files to your vault, or adjust the extension list in plugin settings.",
+			});
+		}
 		return;
 	}
 	for (const child of root.children) {
