@@ -1,8 +1,52 @@
-/*
+.turbo-office-view {
+	padding: var(--size-4-2);
+	font-size: var(--font-ui-small);
+	user-select: none;
+}
 
-This CSS file will be included with your plugin, and
-available in the app when your plugin is enabled.
+.turbo-office-view .turbo-folder,
+.turbo-office-view .turbo-file {
+	display: flex;
+	align-items: center;
+	gap: var(--size-2-1);
+	padding: 2px 4px;
+	border-radius: var(--radius-s);
+}
 
-If your plugin does not need CSS, delete this file.
+.turbo-office-view .turbo-folder {
+	cursor: default;
+}
 
-*/
+.turbo-office-view .turbo-file {
+	cursor: pointer;
+}
+
+.turbo-office-view .turbo-folder:hover,
+.turbo-office-view .turbo-file:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.turbo-office-view .turbo-file.is-active {
+	background-color: var(--background-modifier-active-hover);
+}
+
+.turbo-office-view .turbo-children {
+	padding-left: var(--size-4-3);
+}
+
+.turbo-office-view .turbo-children.is-collapsed {
+	display: none;
+}
+
+.turbo-office-view .turbo-folder-chevron,
+.turbo-office-view .turbo-folder-icon,
+.turbo-office-view .turbo-file-icon {
+	display: inline-flex;
+	align-items: center;
+}
+
+.turbo-office-view .turbo-empty {
+	color: var(--text-muted);
+	padding: var(--size-4-2);
+	font-style: italic;
+}
