@@ -111,5 +111,32 @@ export class NativeExplorerEnhancer {
 			const pinned = nativePinnedPaths.some((rule) => matchesPattern(rule, name, path));
 			el.toggleClass("turbo-native-pinned", pinned);
 		});
+
+		this.markPinnedDividers();
+	}
+
+	// For each container that holds direct nav children, find the first non-pinned
+	// child in source order and tag it with `turbo-pinned-divider`. With CSS `order`
+	// reordering, that element is rendered just below the pinned block — perfect spot
+	// for a separator. The reorder is purely visual; vault paths are untouched.
+	private markPinnedDividers(): void {
+		if (!this.container) return;
+		const containers = this.container.querySelectorAll<HTMLElement>(".nav-folder-children");
+		containers.forEach((parent) => {
+			const children = Array.from(parent.children) as HTMLElement[];
+			let firstUnpinned: HTMLElement | null = null;
+			let hasPinned = false;
+			for (const c of children) {
+				c.removeClass("turbo-pinned-divider");
+				if (c.classList.contains("turbo-native-pinned")) {
+					hasPinned = true;
+				} else if (!firstUnpinned && !c.classList.contains("turbo-hidden")) {
+					firstUnpinned = c;
+				}
+			}
+			if (hasPinned && firstUnpinned) {
+				firstUnpinned.addClass("turbo-pinned-divider");
+			}
+		});
 	}
 }

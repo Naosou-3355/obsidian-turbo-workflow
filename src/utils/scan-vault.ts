@@ -1,22 +1,14 @@
-import { App, FileSystemAdapter, TFile } from "obsidian";
+import { App } from "obsidian";
 import { TurboSettings, SortOrder } from "../settings";
 import { FileNode, FolderNode, HideRule, PinRule, TreeNode } from "../types";
 import { matchesPattern } from "./pattern-match";
 
 export async function buildFileTree(app: App, settings: TurboSettings): Promise<FolderNode> {
 	const exts = new Set(settings.fileExtensions.map((e) => e.toLowerCase()));
-	let fileNodes: FileNode[];
+	let fileNodes = buildFromVaultIndex(app, exts, settings.showHiddenFolders);
 
-	if (!settings.showHiddenFolders) {
-		fileNodes = buildFromVaultIndex(app, exts);
-	} else {
-		fileNodes = await buildFromFilesystem(app, exts);
-	}
-
-	// Apply file hide patterns
 	fileNodes = fileNodes.filter((node) => !isHidden(node.name, node.path, settings.hidePatterns));
 
-	// Mark pinned files
 	for (const node of fileNodes) {
 		node.pinned = isPinned(node.name, node.path, settings.pinnedPaths);
 	}
@@ -29,52 +21,12 @@ export async function buildFileTree(app: App, settings: TurboSettings): Promise<
 	return root;
 }
 
-function buildFromVaultIndex(app: App, exts: Set<string>): FileNode[] {
+function buildFromVaultIndex(app: App, exts: Set<string>, includeHidden: boolean): FileNode[] {
 	const nodes: FileNode[] = [];
 	for (const f of app.vault.getFiles()) {
 		if (!exts.has(f.extension.toLowerCase())) continue;
-		if (hasHiddenSegment(f.path)) continue;
+		if (!includeHidden && hasHiddenSegment(f.path)) continue;
 		nodes.push({ kind: "file", name: f.name, path: f.path, file: f });
-	}
-	return nodes;
-}
-
-async function buildFromFilesystem(app: App, exts: Set<string>): Promise<FileNode[]> {
-	const adapter = app.vault.adapter;
-	if (!(adapter instanceof FileSystemAdapter)) {
-		return buildFromVaultIndex(app, exts);
-	}
-	const queue: string[] = [""];
-	const visited = new Set<string>([""]); // guard against symlink cycles
-	const allPaths: string[] = [];
-	while (queue.length > 0) {
-		const dir = queue.shift()!;
-		const listed = await adapter.list(dir);
-		for (const f of listed.files) {
-			allPaths.push(f);
-		}
-		for (const folder of listed.folders) {
-			if (!visited.has(folder)) {
-				visited.add(folder);
-				queue.push(folder);
-			}
-		}
-	}
-	const nodes: FileNode[] = [];
-	for (const p of allPaths) {
-		const lastDot = p.lastIndexOf(".");
-		const ext = lastDot >= 0 ? p.slice(lastDot + 1).toLowerCase() : "";
-		if (!exts.has(ext)) continue;
-		const lastSlash = p.lastIndexOf("/");
-		const name = lastSlash >= 0 ? p.slice(lastSlash + 1) : p;
-		const abstract = app.vault.getAbstractFileByPath(p);
-		nodes.push({
-			kind: "file",
-			name,
-			path: p,
-			file: abstract instanceof TFile ? abstract : null,
-			absPath: adapter.getFullPath(p),
-		});
 	}
 	return nodes;
 }

@@ -23,7 +23,6 @@ export interface TurboSettings {
 	enableNativeExplorerEnhancements: boolean;
 	nativeHidePatterns: HideRule[];
 	nativePinnedPaths: PinRule[];
-	nativeCollapseMode: CollapseMode;
 	// Extension icons
 	extensionIcons: Record<string, string>;
 	// Code emitter
@@ -43,7 +42,6 @@ export const DEFAULT_SETTINGS: TurboSettings = {
 	enableNativeExplorerEnhancements: false,
 	nativeHidePatterns: [],
 	nativePinnedPaths: [],
-	nativeCollapseMode: "manual",
 	extensionIcons: {},
 	codeEmitterEnabled: false,
 	codeEmitterRemoteEnabled: false,
@@ -99,15 +97,18 @@ export class TurboSettingTab extends PluginSettingTab {
 	display(): void {
 		const { containerEl } = this;
 		containerEl.empty();
-		this.renderCoreSection(containerEl);
-		this.renderFilterSection(containerEl);
-		this.renderCollapseSection(containerEl);
+		this.renderPanelSection(containerEl);
+		this.renderPanelFilterSection(containerEl);
+		this.renderHiddenFilesSection(containerEl);
 		this.renderNativeExplorerSection(containerEl);
 		this.renderIconSection(containerEl);
 		this.renderCodeEmitterSection(containerEl);
 	}
 
-	private renderCoreSection(el: HTMLElement): void {
+	// ──────────────────────────────────────────────────────────────
+	// 1. External files panel — what to show, where, how
+	// ──────────────────────────────────────────────────────────────
+	private renderPanelSection(el: HTMLElement): void {
 		new Setting(el).setName("External files panel").setHeading();
 
 		new Setting(el)
@@ -129,7 +130,7 @@ export class TurboSettingTab extends PluginSettingTab {
 			});
 
 		new Setting(el)
-			.setName("Reset to defaults")
+			.setName("Reset extensions")
 			.setDesc("Restore the default extension list.")
 			.addButton((btn) =>
 				btn.setButtonText("Reset").onClick(async () => {
@@ -138,25 +139,6 @@ export class TurboSettingTab extends PluginSettingTab {
 					this.plugin.refreshOfficeFilesView();
 					this.display();
 				}),
-			);
-
-		const configDir = this.app.vault.configDir;
-		new Setting(el)
-			.setName("Show hidden folders")
-			.setDesc(`Include folders starting with a dot, such as ${configDir}. Off by default.`)
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.showHiddenFolders)
-					.onChange(async (value) => {
-						this.plugin.settings.showHiddenFolders = value;
-						await this.plugin.saveSettings();
-						if (value) {
-							this.plugin.hiddenFilesPatcher.enable();
-						} else {
-							this.plugin.hiddenFilesPatcher.disable();
-						}
-						this.plugin.refreshOfficeFilesView();
-					}),
 			);
 
 		new Setting(el)
@@ -170,6 +152,24 @@ export class TurboSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.sortOrder)
 					.onChange(async (value) => {
 						this.plugin.settings.sortOrder = value as SortOrder;
+						await this.plugin.saveSettings();
+						this.plugin.refreshOfficeFilesView();
+					}),
+			);
+
+		new Setting(el)
+			.setName("Collapse mode")
+			.setDesc(
+				"Manual: each folder toggles independently. Cascade: opening a folder collapses its siblings. Accordion: only one top-level folder open at a time.",
+			)
+			.addDropdown((drop) =>
+				drop
+					.addOption("manual", "Manual")
+					.addOption("cascade", "Cascade")
+					.addOption("accordion", "Accordion")
+					.setValue(this.plugin.settings.collapseMode)
+					.onChange(async (value) => {
+						this.plugin.settings.collapseMode = value as CollapseMode;
 						await this.plugin.saveSettings();
 						this.plugin.refreshOfficeFilesView();
 					}),
@@ -192,7 +192,7 @@ export class TurboSettingTab extends PluginSettingTab {
 		new Setting(el)
 			.setName("Show panel in left sidebar")
 			.setDesc(
-				"Show the external files panel in the left sidebar instead of the right sidebar. The panel will move immediately.",
+				"Show the panel in the left sidebar instead of the right. Moves immediately.",
 			)
 			.addToggle((toggle) =>
 				toggle
@@ -205,10 +205,14 @@ export class TurboSettingTab extends PluginSettingTab {
 			);
 	}
 
-	private renderFilterSection(el: HTMLElement): void {
-		new Setting(el).setName("Filter and pin (external files panel)").setHeading();
+	// ──────────────────────────────────────────────────────────────
+	// 2. Filter and pin rules for the panel
+	// ──────────────────────────────────────────────────────────────
+	private renderPanelFilterSection(el: HTMLElement): void {
+		new Setting(el).setName("Panel filter and pin rules").setHeading();
 
-		const patternHelp = "One rule per line. Default is glob matching against the file/folder name. Prefix with regex: for regex, or path: to match against the full vault path. Example: *.json or regex:^\\. or path:*.docx";
+		const patternHelp =
+			"One rule per line. Default is glob against the file/folder name. Prefix with regex: for regex, or path: to match the full vault path. Example: *.json or regex:^\\. or path:*.docx";
 
 		new Setting(el)
 			.setName("Hide patterns")
@@ -229,7 +233,7 @@ export class TurboSettingTab extends PluginSettingTab {
 		new Setting(el)
 			.setName("Pin patterns")
 			.setDesc(
-				"Items matching these patterns appear at the top. Same format as hide patterns. Right-click a file in the panel to pin it directly.",
+				"Matching items appear at the top. Same format as hide patterns. Right-click a file in the panel to pin it directly.",
 			)
 			.addTextArea((text) => {
 				text
@@ -245,35 +249,46 @@ export class TurboSettingTab extends PluginSettingTab {
 			});
 	}
 
-	private renderCollapseSection(el: HTMLElement): void {
-		new Setting(el).setName("Collapse behavior (external files panel)").setHeading();
+	// ──────────────────────────────────────────────────────────────
+	// 3. Hidden files — vault-wide; affects both the panel and the
+	//    native explorer (patches Obsidian's vault index)
+	// ──────────────────────────────────────────────────────────────
+	private renderHiddenFilesSection(el: HTMLElement): void {
+		new Setting(el).setName("Hidden files").setHeading();
 
+		const configDir = this.app.vault.configDir;
 		new Setting(el)
-			.setName("Collapse mode")
+			.setName("Show hidden files and folders")
 			.setDesc(
-				"Manual: click toggles each folder independently. Cascade: opening a folder collapses its siblings. Accordion: only one top-level folder can be open at a time.",
+				`Surface dotfolders (such as ${configDir}) into Obsidian's vault index so they appear in the panel and the native explorer, and open/edit/rename like normal files. ` +
+					".git, .venv, .hg, and .svn are always excluded to prevent corruption.",
 			)
-			.addDropdown((drop) =>
-				drop
-					.addOption("manual", "Manual")
-					.addOption("cascade", "Cascade")
-					.addOption("accordion", "Accordion")
-					.setValue(this.plugin.settings.collapseMode)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.showHiddenFolders)
 					.onChange(async (value) => {
-						this.plugin.settings.collapseMode = value as CollapseMode;
+						this.plugin.settings.showHiddenFolders = value;
 						await this.plugin.saveSettings();
+						if (value) {
+							this.plugin.hiddenFilesPatcher.enable();
+						} else {
+							this.plugin.hiddenFilesPatcher.disable();
+						}
 						this.plugin.refreshOfficeFilesView();
 					}),
 			);
 	}
 
+	// ──────────────────────────────────────────────────────────────
+	// 4. Native file explorer enhancements
+	// ──────────────────────────────────────────────────────────────
 	private renderNativeExplorerSection(el: HTMLElement): void {
-		new Setting(el).setName("Native file explorer enhancements").setHeading();
+		new Setting(el).setName("Native file explorer").setHeading();
 
 		new Setting(el)
-			.setName("Enable native file explorer enhancements")
+			.setName("Enable enhancements")
 			.setDesc(
-				"Apply hide/pin rules to the built-in file explorer. Right-click any file or folder to pin it.",
+				"Apply hide and pin rules to Obsidian's built-in file explorer. Pinned items are visually moved to the top of their folder; their actual vault path is unchanged.",
 			)
 			.addToggle((toggle) =>
 				toggle
@@ -290,8 +305,10 @@ export class TurboSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(el)
-			.setName("Native hide patterns")
-			.setDesc("Files/folders matching these patterns are hidden in the built-in explorer. Same format as hide patterns above.")
+			.setName("Hide patterns")
+			.setDesc(
+				"Files and folders matching these patterns are hidden in the built-in explorer. Same format as panel hide patterns.",
+			)
 			.addTextArea((text) => {
 				text
 					.setPlaceholder(`*.json\npath:${this.app.vault.configDir}/*`)
@@ -306,9 +323,9 @@ export class TurboSettingTab extends PluginSettingTab {
 			});
 
 		new Setting(el)
-			.setName("Native pin patterns")
+			.setName("Pin patterns")
 			.setDesc(
-				"Items matching these patterns appear at the top in the built-in explorer. Right-click to pin individual files.",
+				"Matching items float to the top of their folder visually. Right-click any file or folder in the explorer to pin it directly.",
 			)
 			.addTextArea((text) => {
 				text
@@ -322,38 +339,31 @@ export class TurboSettingTab extends PluginSettingTab {
 				text.inputEl.rows = 4;
 				text.inputEl.cols = 40;
 			});
-
-		new Setting(el)
-			.setName("Native collapse mode")
-			.setDesc("Collapse behavior for the built-in file explorer.")
-			.addDropdown((drop) =>
-				drop
-					.addOption("manual", "Manual")
-					.addOption("cascade", "Cascade")
-					.addOption("accordion", "Accordion")
-					.setValue(this.plugin.settings.nativeCollapseMode)
-					.onChange(async (value) => {
-						this.plugin.settings.nativeCollapseMode = value as CollapseMode;
-						await this.plugin.saveSettings();
-					}),
-			);
 	}
 
+	// ──────────────────────────────────────────────────────────────
+	// 5. Per-extension icon overrides
+	// ──────────────────────────────────────────────────────────────
 	private renderIconSection(el: HTMLElement): void {
 		new Setting(el).setName("Extension icons").setHeading();
 		new Setting(el)
 			.setName("Custom icon mapping")
-			.setDesc("Set a custom icon name for each file extension. Leave blank to use the built-in icon.");
+			.setDesc(
+				"Set a custom icon name for each file extension. Leave blank to use the built-in icon.",
+			);
 		renderIconSettings(el, this.plugin);
 	}
 
+	// ──────────────────────────────────────────────────────────────
+	// 6. Code emitter — run code blocks inline
+	// ──────────────────────────────────────────────────────────────
 	private renderCodeEmitterSection(el: HTMLElement): void {
 		new Setting(el).setName("Code emitter").setHeading();
 
 		new Setting(el)
 			.setName("Enable code emitter")
 			.setDesc(
-				"Adds a run button to code blocks in notes. Python blocks download a runtime on first use (requires internet).",
+				"Add a run button to code blocks in notes. Python blocks download a runtime on first use (requires internet).",
 			)
 			.addToggle((toggle) =>
 				toggle
@@ -365,7 +375,7 @@ export class TurboSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(el)
-			.setName("Enable remote code execution")
+			.setName("Enable remote execution")
 			.setDesc(
 				"Allow sending code to external servers for execution. Your code is transmitted to a third-party service.",
 			)
