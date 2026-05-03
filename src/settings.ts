@@ -152,6 +152,11 @@ export class TurboSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.showHiddenFolders = value;
 						await this.plugin.saveSettings();
+						if (value) {
+							this.plugin.hiddenFilesPatcher.enable();
+						} else {
+							this.plugin.hiddenFilesPatcher.disable();
+						}
 						this.plugin.refreshOfficeFilesView();
 					}),
 			);
