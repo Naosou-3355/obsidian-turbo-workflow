@@ -108,9 +108,7 @@ export class OfficeFilesView extends ItemView {
 	}
 
 	private isFolderCollapsed(path: string): boolean {
-		const explicit = this.toggled.get(path);
-		if (explicit !== undefined) return explicit;
-		return !this.plugin.settings.expandFoldersByDefault;
+		return this.toggled.get(path) ?? false;
 	}
 
 	private setSelection(path: string, row: HTMLElement): void {

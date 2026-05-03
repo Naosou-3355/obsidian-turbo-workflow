@@ -55,6 +55,14 @@ export class HiddenFilesPatcher {
 
 		adapter.reconcileDeletion = async (realPath: string, path: string): Promise<void> => {
 			if (this.active && isHiddenPath(path)) {
+				// Fast path: if the file is already in the vault index and we've previously
+				// surfaced it, skip the async filesystem check + reconcile. This is what
+				// fires repeatedly when the user clicks a hidden file (Obsidian's reload-
+				// aware reconciler keeps trying to evict it), and the redundant filesystem
+				// round-trips are what cause the open-flicker.
+				if (this.hiddenPaths.has(path) && this.app.vault.getAbstractFileByPath(path)) {
+					return;
+				}
 				const fullPath = adapter.getFullPath(path);
 				const exists = await adapter._exists(fullPath, path).catch(() => false);
 				if (exists) {

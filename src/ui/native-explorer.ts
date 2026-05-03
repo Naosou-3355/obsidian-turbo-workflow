@@ -1,4 +1,4 @@
-import { App } from "obsidian";
+import { App, debounce } from "obsidian";
 import TurboPlugin from "../main";
 import { matchesPattern } from "../utils/pattern-match";
 
@@ -9,8 +9,11 @@ interface FileExplorerView {
 export class NativeExplorerEnhancer {
 	private observer: MutationObserver | null = null;
 	private container: HTMLElement | null = null;
+	private readonly debouncedApply: () => void;
 
-	constructor(private app: App, private plugin: TurboPlugin) {}
+	constructor(private app: App, private plugin: TurboPlugin) {
+		this.debouncedApply = debounce(() => this.applyRules(), 80, true);
+	}
 
 	enable(): void {
 		const leaves = this.app.workspace.getLeavesOfType("file-explorer");
@@ -20,7 +23,13 @@ export class NativeExplorerEnhancer {
 		if (!view.containerEl) return;
 		this.container = view.containerEl;
 		this.applyRules();
-		this.observer = new MutationObserver(() => this.applyRules());
+		this.observer = new MutationObserver((mutations) => {
+			// Only react when actual nav-file/nav-folder elements are added — ignore
+			// tooltips, hover indicators, and other transient mutations triggered by clicks
+			if (this.hasRelevantMutation(mutations)) {
+				this.debouncedApply();
+			}
+		});
 		this.observer.observe(this.container, { childList: true, subtree: true });
 	}
 
@@ -42,14 +51,25 @@ export class NativeExplorerEnhancer {
 		if (this.container) this.applyRules();
 	}
 
+	private hasRelevantMutation(mutations: MutationRecord[]): boolean {
+		for (const m of mutations) {
+			for (let i = 0; i < m.addedNodes.length; i++) {
+				const node = m.addedNodes[i];
+				if (!(node instanceof HTMLElement)) continue;
+				if (node.matches(".nav-file, .nav-folder")) return true;
+				if (node.querySelector(".nav-file, .nav-folder")) return true;
+			}
+		}
+		return false;
+	}
+
 	private applyRules(): void {
-		if (!this.container || !this.observer) return;
-		// Disconnect before modifying DOM so our own class changes don't re-fire the observer
-		this.observer.disconnect();
+		if (!this.container) return;
+		this.observer?.disconnect();
 		try {
 			this.doApplyRules();
 		} finally {
-			if (this.container) {
+			if (this.container && this.observer) {
 				this.observer.observe(this.container, { childList: true, subtree: true });
 			}
 		}
@@ -62,6 +82,11 @@ export class NativeExplorerEnhancer {
 		this.container.querySelectorAll<HTMLElement>(".nav-file").forEach((el) => {
 			const titleEl = el.querySelector<HTMLElement>(".nav-file-title");
 			const path = titleEl?.dataset["path"] ?? "";
+			if (!path) {
+				el.removeClass("turbo-hidden");
+				el.removeClass("turbo-native-pinned");
+				return;
+			}
 			const lastSlash = path.lastIndexOf("/");
 			const name = lastSlash >= 0 ? path.slice(lastSlash + 1) : path;
 			const shouldHide = nativeHidePatterns.some((rule) => matchesPattern(rule, name, path));
@@ -71,8 +96,14 @@ export class NativeExplorerEnhancer {
 		});
 
 		this.container.querySelectorAll<HTMLElement>(".nav-folder").forEach((el) => {
-			const titleEl = el.querySelector<HTMLElement>(".nav-folder-title");
+			const titleEl = el.querySelector<HTMLElement>(":scope > .nav-folder-title");
 			const path = titleEl?.dataset["path"] ?? "";
+			if (!path) {
+				// Skip the explorer-root nav-folder which has no title/path
+				el.removeClass("turbo-hidden");
+				el.removeClass("turbo-native-pinned");
+				return;
+			}
 			const lastSlash = path.lastIndexOf("/");
 			const name = lastSlash >= 0 ? path.slice(lastSlash + 1) : path;
 			const shouldHide = nativeHidePatterns.some((rule) => matchesPattern(rule, name, path));

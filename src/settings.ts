@@ -13,7 +13,6 @@ export interface TurboSettings {
 	showHiddenFolders: boolean;
 	sortOrder: SortOrder;
 	openOnSingleClick: boolean;
-	expandFoldersByDefault: boolean;
 	showInLeftSidebar: boolean;
 	// Filter / pin (custom panel)
 	hidePatterns: HideRule[];
@@ -37,7 +36,6 @@ export const DEFAULT_SETTINGS: TurboSettings = {
 	showHiddenFolders: false,
 	sortOrder: "name-asc",
 	openOnSingleClick: false,
-	expandFoldersByDefault: true,
 	showInLeftSidebar: false,
 	hidePatterns: [],
 	pinnedPaths: [],
@@ -172,19 +170,6 @@ export class TurboSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.sortOrder)
 					.onChange(async (value) => {
 						this.plugin.settings.sortOrder = value as SortOrder;
-						await this.plugin.saveSettings();
-						this.plugin.refreshOfficeFilesView();
-					}),
-			);
-
-		new Setting(el)
-			.setName("Expand folders by default")
-			.setDesc("When the panel opens, expand all folders.")
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.expandFoldersByDefault)
-					.onChange(async (value) => {
-						this.plugin.settings.expandFoldersByDefault = value;
 						await this.plugin.saveSettings();
 						this.plugin.refreshOfficeFilesView();
 					}),

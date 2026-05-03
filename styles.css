@@ -71,12 +71,17 @@
 	display: none !important;
 }
 
-.turbo-native-pinned > .nav-file-title::before,
-.turbo-native-pinned > .nav-folder-title::before {
-	content: "›";
-	font-weight: bold;
-	margin-right: 2px;
+.turbo-native-pinned > .nav-file-title,
+.turbo-native-pinned > .nav-folder-title {
 	color: var(--color-accent);
+}
+
+.turbo-native-pinned > .nav-file-title::after,
+.turbo-native-pinned > .nav-folder-title::after {
+	content: "•";
+	margin-left: 6px;
+	color: var(--color-accent);
+	opacity: 0.7;
 }
 
 /* ── Icon settings table ──────────────────────────────────────── */
