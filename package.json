@@ -1,7 +1,7 @@
 {
 	"name": "obsidian-turbo-workflow",
-	"version": "1.0.2",
-	"description": "Browse Office and other non-markdown files inside the vault and open them in their default external application.",
+	"version": "2.0.0",
+	"description": "Browse and filter Office files, run code blocks, enhance the native explorer with hide/pin rules and collapse modes.",
 	"main": "main.js",
 	"type": "module",
 	"scripts": {

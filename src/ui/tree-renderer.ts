@@ -1,10 +1,12 @@
-import { TFile, setIcon } from "obsidian";
-import { FolderNode, TreeNode } from "../types";
+import { setIcon } from "obsidian";
+import { TurboSettings } from "../settings";
+import { FileNode, FolderNode, TreeNode } from "../types";
 
 export interface TreeHandlers {
-	onFileClick(file: TFile, row: HTMLElement, evt: MouseEvent): void;
-	onFileDoubleClick(file: TFile): void;
-	onFolderToggle(path: string): void;
+	onFileClick(node: FileNode, row: HTMLElement): void;
+	onFileDoubleClick(node: FileNode): void;
+	onFolderToggle(path: string, siblingPaths: string[]): void;
+	onFileContextMenu?(node: FileNode, evt: MouseEvent): void;
 	isCollapsed(path: string): boolean;
 	isSelected(path: string): boolean;
 }
@@ -13,76 +15,118 @@ export function renderTree(
 	container: HTMLElement,
 	root: FolderNode,
 	handlers: TreeHandlers,
-	diagnostics?: { totalFiles: number; extensions: string[] },
+	diagnostics: { totalFiles: number; extensions: string[] },
+	settings: Pick<TurboSettings, "extensionIcons">,
 ): void {
 	container.empty();
 	if (root.children.length === 0) {
 		const wrap = container.createDiv({ cls: "turbo-empty" });
 		wrap.createDiv({ text: "No matching files found in vault." });
-		if (diagnostics) {
-			wrap.createDiv({
-				cls: "turbo-empty-hint",
-				text: `Vault: ${diagnostics.totalFiles} file(s) total. Looking for: ${diagnostics.extensions.join(", ") || "(none configured)"}`,
-			});
-			wrap.createDiv({
-				cls: "turbo-empty-hint",
-				text: "Add Office files to your vault, or adjust the extension list in plugin settings.",
-			});
-		}
+		wrap.createDiv({
+			cls: "turbo-empty-hint",
+			text: `Vault: ${diagnostics.totalFiles} file(s) total. Looking for: ${diagnostics.extensions.join(", ") || "(none configured)"}`,
+		});
+		wrap.createDiv({
+			cls: "turbo-empty-hint",
+			text: "Add matching files to your vault, or adjust the extension list in plugin settings.",
+		});
 		return;
 	}
+
+	const siblingFolderPaths = root.children
+		.filter((c) => c.kind === "folder")
+		.map((c) => c.path);
+
 	for (const child of root.children) {
-		renderNode(container, child, handlers);
+		renderNode(container, child, siblingFolderPaths, handlers, settings);
 	}
 }
 
-function renderNode(parent: HTMLElement, node: TreeNode, handlers: TreeHandlers): void {
+function renderNode(
+	parent: HTMLElement,
+	node: TreeNode,
+	siblingFolderPaths: string[],
+	handlers: TreeHandlers,
+	settings: Pick<TurboSettings, "extensionIcons">,
+): void {
 	if (node.kind === "folder") {
-		renderFolder(parent, node, handlers);
+		renderFolder(parent, node, siblingFolderPaths, handlers, settings);
 	} else {
-		renderFile(parent, node.file, handlers);
+		renderFile(parent, node, handlers, settings);
 	}
 }
 
-function renderFolder(parent: HTMLElement, folder: FolderNode, handlers: TreeHandlers): void {
+function renderFolder(
+	parent: HTMLElement,
+	folder: FolderNode,
+	siblingFolderPaths: string[],
+	handlers: TreeHandlers,
+	settings: Pick<TurboSettings, "extensionIcons">,
+): void {
 	const collapsed = handlers.isCollapsed(folder.path);
 
 	const row = parent.createDiv({ cls: "turbo-folder" });
+	if (folder.pinned) row.addClass("turbo-pinned");
 	const chevron = row.createSpan({ cls: "turbo-folder-chevron" });
 	setIcon(chevron, collapsed ? "chevron-right" : "chevron-down");
 	const iconEl = row.createSpan({ cls: "turbo-folder-icon" });
 	setIcon(iconEl, "folder");
+	if (folder.pinned) {
+		const pinEl = row.createSpan({ cls: "turbo-pin-indicator" });
+		setIcon(pinEl, "pin");
+	}
 	row.createSpan({ cls: "turbo-folder-name", text: folder.name });
 
 	const childrenEl = parent.createDiv({ cls: "turbo-children" });
 	if (collapsed) childrenEl.addClass("is-collapsed");
 
 	row.addEventListener("click", () => {
-		handlers.onFolderToggle(folder.path);
+		handlers.onFolderToggle(folder.path, siblingFolderPaths);
 		const nowCollapsed = handlers.isCollapsed(folder.path);
 		setIcon(chevron, nowCollapsed ? "chevron-right" : "chevron-down");
 		childrenEl.toggleClass("is-collapsed", nowCollapsed);
 	});
 
+	const childSiblingPaths = folder.children
+		.filter((c) => c.kind === "folder")
+		.map((c) => c.path);
+
 	for (const child of folder.children) {
-		renderNode(childrenEl, child, handlers);
+		renderNode(childrenEl, child, childSiblingPaths, handlers, settings);
 	}
 }
 
-function renderFile(parent: HTMLElement, file: TFile, handlers: TreeHandlers): void {
+function renderFile(
+	parent: HTMLElement,
+	node: FileNode,
+	handlers: TreeHandlers,
+	settings: Pick<TurboSettings, "extensionIcons">,
+): void {
 	const row = parent.createDiv({ cls: "turbo-file" });
-	if (handlers.isSelected(file.path)) row.addClass("is-active");
+	if (handlers.isSelected(node.path)) row.addClass("is-active");
+	if (node.pinned) row.addClass("turbo-pinned");
 
 	const iconEl = row.createSpan({ cls: "turbo-file-icon" });
-	setIcon(iconEl, iconForExtension(file.extension));
-	row.createSpan({ cls: "turbo-file-name", text: file.name });
+	const lastDot = node.name.lastIndexOf(".");
+	const ext = lastDot >= 0 ? node.name.slice(lastDot + 1).toLowerCase() : "";
+	const customIcon = settings.extensionIcons[ext];
+	setIcon(iconEl, customIcon !== undefined ? customIcon : iconForExtension(ext));
 
-	row.addEventListener("click", (evt) => handlers.onFileClick(file, row, evt));
-	row.addEventListener("dblclick", () => handlers.onFileDoubleClick(file));
+	if (node.pinned) {
+		const pinEl = row.createSpan({ cls: "turbo-pin-indicator" });
+		setIcon(pinEl, "pin");
+	}
+	row.createSpan({ cls: "turbo-file-name", text: node.name });
+
+	row.addEventListener("click", () => handlers.onFileClick(node, row));
+	row.addEventListener("dblclick", () => handlers.onFileDoubleClick(node));
+	if (handlers.onFileContextMenu) {
+		row.addEventListener("contextmenu", (evt) => handlers.onFileContextMenu!(node, evt));
+	}
 }
 
 function iconForExtension(ext: string): string {
-	switch (ext.toLowerCase()) {
+	switch (ext) {
 		case "xlsx":
 		case "xls":
 		case "csv":

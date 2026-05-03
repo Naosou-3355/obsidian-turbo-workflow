@@ -5,3 +5,6 @@ export const CMD_REFRESH_PANEL = "turbo-refresh-office-files";
 export const DEFAULT_EXTENSIONS = ["docx", "xlsx", "pptx", "doc", "xls", "ppt"];
 export const MAX_EXTENSIONS = 50;
 export const REFRESH_DEBOUNCE_MS = 150;
+export const CODE_EMITTER_SUPPORTED_LANGS = ["javascript", "js", "typescript", "ts", "python", "py", "html", "css"];
+export const CODE_EMITTER_REMOTE_LANGS = ["rust"];
+export const CODE_EMITTER_TIMEOUT_MS = 10000;

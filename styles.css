@@ -1,3 +1,5 @@
+/* ── External files panel ─────────────────────────────────────── */
+
 .turbo-office-view {
 	padding: var(--size-4-2);
 	font-size: var(--font-ui-small);
@@ -45,6 +47,13 @@
 	align-items: center;
 }
 
+.turbo-office-view .turbo-pin-indicator {
+	display: inline-flex;
+	align-items: center;
+	opacity: 0.5;
+	transform: scale(0.75);
+}
+
 .turbo-office-view .turbo-empty {
 	color: var(--text-muted);
 	padding: var(--size-4-2);
@@ -54,4 +63,99 @@
 	font-size: var(--font-ui-smaller);
 	margin-top: var(--size-2-1);
 	opacity: 0.8;
+}
+
+/* ── Native file explorer enhancements ────────────────────────── */
+
+.turbo-hidden {
+	display: none !important;
+}
+
+.turbo-native-pinned > .nav-file-title::before,
+.turbo-native-pinned > .nav-folder-title::before {
+	content: "›";
+	font-weight: bold;
+	margin-right: 2px;
+	color: var(--color-accent);
+}
+
+/* ── Icon settings table ──────────────────────────────────────── */
+
+.turbo-icon-table {
+	width: 100%;
+	border-collapse: collapse;
+	margin-top: var(--size-2-2);
+}
+
+.turbo-icon-table th,
+.turbo-icon-table td {
+	padding: 4px 8px;
+	text-align: left;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.turbo-icon-input {
+	width: 140px;
+}
+
+.turbo-icon-preview {
+	display: inline-flex;
+	align-items: center;
+}
+
+/* ── Code emitter ─────────────────────────────────────────────── */
+
+.code-emitter-run {
+	display: inline-block;
+	margin-top: var(--size-2-2);
+	padding: 2px 12px;
+	border-radius: var(--radius-s);
+	background-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+	border: none;
+	cursor: pointer;
+	font-size: var(--font-ui-small);
+}
+
+.code-emitter-run:hover {
+	background-color: var(--interactive-accent-hover);
+}
+
+.code-emitter-output {
+	margin-top: var(--size-2-2);
+	padding: var(--size-2-2);
+	border-radius: var(--radius-s);
+	background-color: var(--background-secondary);
+	min-height: 24px;
+}
+
+.code-emitter-output.is-running {
+	color: var(--text-muted);
+	font-style: italic;
+}
+
+.code-emitter-output .code-emitter-result {
+	margin: 0;
+	white-space: pre-wrap;
+	font-family: var(--font-monospace);
+	font-size: var(--font-smaller);
+}
+
+.code-emitter-output .code-emitter-error {
+	color: var(--text-error);
+	white-space: pre-wrap;
+	font-family: var(--font-monospace);
+	font-size: var(--font-smaller);
+}
+
+.code-emitter-output .code-emitter-empty {
+	color: var(--text-muted);
+	font-style: italic;
+}
+
+.code-emitter-html-output {
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	padding: var(--size-4-2);
+	min-height: 60px;
 }

@@ -1,7 +1,8 @@
-import { App, FileSystemAdapter, Notice, Platform, TFile } from "obsidian";
+import { App, FileSystemAdapter, Notice, Platform } from "obsidian";
 import { shell } from "electron";
+import { FileNode } from "../types";
 
-export async function openExternal(app: App, file: TFile): Promise<void> {
+export async function openExternal(app: App, node: FileNode): Promise<void> {
 	if (!Platform.isDesktop) {
 		new Notice("Opening external files is only available on desktop.");
 		return;
@@ -11,7 +12,7 @@ export async function openExternal(app: App, file: TFile): Promise<void> {
 		new Notice("This vault adapter does not expose filesystem paths.");
 		return;
 	}
-	const absPath = adapter.getFullPath(file.path);
+	const absPath = node.absPath ?? adapter.getFullPath(node.path);
 	try {
 		const errMsg = await shell.openPath(absPath);
 		if (errMsg) {
