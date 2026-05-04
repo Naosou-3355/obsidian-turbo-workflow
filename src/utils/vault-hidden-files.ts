@@ -19,6 +19,10 @@ function isHiddenPath(path: string): boolean {
 
 export class HiddenFilesPatcher {
 	private readonly hiddenPaths = new Set<string>();
+	// Tracks paths whose `showFile` is in flight. Prevents duplicate concurrent
+	// `reconcileFileInternal` calls for the same path when Obsidian fires its
+	// reconciler multiple times before our first one finishes.
+	private readonly inFlight = new Set<string>();
 	private originalReconcile: ((realPath: string, path: string) => Promise<void>) | null = null;
 	private active = false;
 
@@ -53,27 +57,49 @@ export class HiddenFilesPatcher {
 		const original = adapter.reconcileDeletion.bind(adapter);
 		this.originalReconcile = original;
 
-		adapter.reconcileDeletion = async (realPath: string, path: string): Promise<void> => {
-			if (this.active && isHiddenPath(path)) {
-				// Fast path: if the file is already in the vault index and we've previously
-				// surfaced it, skip the async filesystem check + reconcile. This is what
-				// fires repeatedly when the user clicks a hidden file (Obsidian's reload-
-				// aware reconciler keeps trying to evict it), and the redundant filesystem
-				// round-trips are what cause the open-flicker.
-				if (this.hiddenPaths.has(path) && this.app.vault.getAbstractFileByPath(path)) {
-					return;
-				}
-				const fullPath = adapter.getFullPath(path);
-				const exists = await adapter._exists(fullPath, path).catch(() => false);
-				if (exists) {
-					this.hiddenPaths.add(path);
-					await this.showFile(adapter, path).catch(() => {});
-					return; // intercept — add to index instead of removing
-				}
-				this.hiddenPaths.delete(path);
+		// NOTE: kept as a non-async function so the synchronous fast path returns an
+		// already-resolved Promise without an extra microtask hop. Obsidian awaits
+		// this method on hot paths (file open, scroll-driven re-reconciliation), and
+		// every microtask we add stacks into the visible click-to-content latency.
+		adapter.reconcileDeletion = (realPath: string, path: string): Promise<void> => {
+			if (!this.active || !isHiddenPath(path)) {
+				return original(realPath, path);
 			}
-			return original(realPath, path);
+			// Fast synchronous path: file is already in the vault index → keep it.
+			// The vault is the source of truth; the cache Set is bookkeeping for
+			// disable-time cleanup only.
+			if (this.app.vault.getAbstractFileByPath(path)) {
+				this.hiddenPaths.add(path);
+				return Promise.resolve();
+			}
+			// Coalesce concurrent first-time shows for the same path.
+			if (this.inFlight.has(path)) {
+				return Promise.resolve();
+			}
+			return this.surface(adapter, original, realPath, path);
 		};
+	}
+
+	private async surface(
+		adapter: PrivateAdapter,
+		original: (realPath: string, path: string) => Promise<void>,
+		realPath: string,
+		path: string,
+	): Promise<void> {
+		this.inFlight.add(path);
+		try {
+			const fullPath = adapter.getFullPath(path);
+			const exists = await adapter._exists(fullPath, path).catch(() => false);
+			if (exists) {
+				this.hiddenPaths.add(path);
+				await this.showFile(adapter, path).catch(() => {});
+				return;
+			}
+			this.hiddenPaths.delete(path);
+			return original(realPath, path);
+		} finally {
+			this.inFlight.delete(path);
+		}
 	}
 
 	private unpatchAdapter(): void {

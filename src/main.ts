@@ -1,4 +1,4 @@
-import { Plugin, TAbstractFile, debounce } from "obsidian";
+import { Plugin, debounce } from "obsidian";
 import { DEFAULT_SETTINGS, TurboSettings, TurboSettingTab } from "./settings";
 import { OfficeFilesView } from "./ui/office-files-view";
 import { NativeExplorerEnhancer } from "./ui/native-explorer";
@@ -10,7 +10,6 @@ import {
 	RIBBON_ICON,
 	REFRESH_DEBOUNCE_MS,
 } from "./utils/constants";
-import { PinRule } from "./types";
 
 export default class TurboPlugin extends Plugin {
 	settings!: TurboSettings;
@@ -56,42 +55,6 @@ export default class TurboPlugin extends Plugin {
 			this.registerEvent(this.app.vault.on("create", () => this.refreshOfficeFilesView()));
 			this.registerEvent(this.app.vault.on("delete", () => this.refreshOfficeFilesView()));
 			this.registerEvent(this.app.vault.on("rename", () => this.refreshOfficeFilesView()));
-
-			this.registerEvent(
-				this.app.workspace.on("file-menu", (menu, abstractFile: TAbstractFile) => {
-					if (!this.settings.enableNativeExplorerEnhancements) return;
-					const path = abstractFile.path;
-					const isPinned = this.settings.nativePinnedPaths.some(
-						(r) => r.scope === "path" && r.pattern === path,
-					);
-					if (isPinned) {
-						menu.addItem((item) =>
-							item
-								.setTitle("Unpin from top")
-								.setIcon("pin-off")
-								.onClick(() => {
-									this.settings.nativePinnedPaths = this.settings.nativePinnedPaths.filter(
-										(r) => !(r.scope === "path" && r.pattern === path),
-									);
-									void this.saveSettings();
-									this.nativeExplorer.refresh();
-								}),
-						);
-					} else {
-						menu.addItem((item) =>
-							item
-								.setTitle("Pin to top")
-								.setIcon("pin")
-								.onClick(() => {
-									const rule: PinRule = { type: "glob", scope: "path", pattern: path };
-									this.settings.nativePinnedPaths.push(rule);
-									void this.saveSettings();
-									this.nativeExplorer.refresh();
-								}),
-						);
-					}
-				}),
-			);
 		});
 
 		this.register(() => this.nativeExplorer.disable());

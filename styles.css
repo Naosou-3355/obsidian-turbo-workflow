@@ -71,40 +71,6 @@
 	display: none !important;
 }
 
-/* Visual-only reorder: pinned items float to the top of their container while
-   their source position (and therefore the file's vault path) is unchanged.
-   Scoped via :has() so the flex layout only applies to containers with pinned
-   items — folders without pinned items keep Obsidian's default block layout. */
-.nav-folder-children:has(> .turbo-native-pinned) {
-	display: flex;
-	flex-direction: column;
-}
-
-.turbo-native-pinned {
-	order: -1;
-}
-
-.turbo-native-pinned > .nav-file-title,
-.turbo-native-pinned > .nav-folder-title {
-	color: var(--color-accent);
-}
-
-.turbo-native-pinned > .nav-file-title::after,
-.turbo-native-pinned > .nav-folder-title::after {
-	content: "•";
-	margin-left: 6px;
-	color: var(--color-accent);
-	opacity: 0.7;
-}
-
-/* The first non-pinned sibling under a container with pinned items —
-   draws a subtle divider between the pinned block and the rest. */
-.turbo-pinned-divider {
-	border-top: 1px solid var(--background-modifier-border);
-	margin-top: 4px;
-	padding-top: 4px;
-}
-
 /* ── Icon settings table ──────────────────────────────────────── */
 
 .turbo-icon-table {

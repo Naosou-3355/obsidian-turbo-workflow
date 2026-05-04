@@ -22,7 +22,6 @@ export interface TurboSettings {
 	// Native file explorer enhancements
 	enableNativeExplorerEnhancements: boolean;
 	nativeHidePatterns: HideRule[];
-	nativePinnedPaths: PinRule[];
 	// Extension icons
 	extensionIcons: Record<string, string>;
 	// Code emitter
@@ -41,7 +40,6 @@ export const DEFAULT_SETTINGS: TurboSettings = {
 	collapseMode: "manual",
 	enableNativeExplorerEnhancements: false,
 	nativeHidePatterns: [],
-	nativePinnedPaths: [],
 	extensionIcons: {},
 	codeEmitterEnabled: false,
 	codeEmitterRemoteEnabled: false,
@@ -288,7 +286,7 @@ export class TurboSettingTab extends PluginSettingTab {
 		new Setting(el)
 			.setName("Enable enhancements")
 			.setDesc(
-				"Apply hide and pin rules to Obsidian's built-in file explorer. Pinned items are visually moved to the top of their folder; their actual vault path is unchanged.",
+				"Apply hide rules to Obsidian's built-in file explorer.",
 			)
 			.addToggle((toggle) =>
 				toggle
@@ -315,24 +313,6 @@ export class TurboSettingTab extends PluginSettingTab {
 					.setValue(serializePatternRules(this.plugin.settings.nativeHidePatterns))
 					.onChange(async (value) => {
 						this.plugin.settings.nativeHidePatterns = parsePatternRules(value);
-						await this.plugin.saveSettings();
-						this.plugin.nativeExplorer.refresh();
-					});
-				text.inputEl.rows = 4;
-				text.inputEl.cols = 40;
-			});
-
-		new Setting(el)
-			.setName("Pin patterns")
-			.setDesc(
-				"Matching items float to the top of their folder visually. Right-click any file or folder in the explorer to pin it directly.",
-			)
-			.addTextArea((text) => {
-				text
-					.setPlaceholder("Annual*")
-					.setValue(serializePatternRules(this.plugin.settings.nativePinnedPaths))
-					.onChange(async (value) => {
-						this.plugin.settings.nativePinnedPaths = parsePatternRules(value) as PinRule[];
 						await this.plugin.saveSettings();
 						this.plugin.nativeExplorer.refresh();
 					});
