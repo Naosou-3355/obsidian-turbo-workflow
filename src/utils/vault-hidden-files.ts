@@ -19,10 +19,14 @@ function isHiddenPath(path: string): boolean {
 
 export class HiddenFilesPatcher {
 	private readonly hiddenPaths = new Set<string>();
-	// Tracks paths whose `showFile` is in flight. Prevents duplicate concurrent
-	// `reconcileFileInternal` calls for the same path when Obsidian fires its
-	// reconciler multiple times before our first one finishes.
+	// Tracks paths that are queued or actively being surfaced.
 	private readonly inFlight = new Set<string>();
+	// Batch queue for first-time surfaces. Flushed as a single microtask so that
+	// concurrent reconcileDeletion calls from one folder expansion are processed
+	// together, collapsing N sequential reconcileFileInternal DOM mutations into
+	// one parallel batch and eliminating the file-list flash.
+	private readonly pendingBatch = new Map<string, string>(); // path -> realPath
+	private batchScheduled = false;
 	private originalReconcile: ((realPath: string, path: string) => Promise<void>) | null = null;
 	private active = false;
 
@@ -76,30 +80,46 @@ export class HiddenFilesPatcher {
 			if (this.inFlight.has(path)) {
 				return Promise.resolve();
 			}
-			return this.surface(adapter, original, realPath, path);
+			// Reserve the path and queue it for the next microtask batch.
+			// Returning Promise.resolve() immediately prevents blocking Obsidian's
+			// reconciler loop while N sibling files in a dotfolder are all being
+			// surfaced at once (e.g. on folder expansion).
+			this.inFlight.add(path);
+			this.pendingBatch.set(path, realPath);
+			if (!this.batchScheduled) {
+				this.batchScheduled = true;
+				Promise.resolve().then(() => this.flushBatch(adapter, original));
+			}
+			return Promise.resolve();
 		};
 	}
 
-	private async surface(
+	private async flushBatch(
 		adapter: PrivateAdapter,
 		original: (realPath: string, path: string) => Promise<void>,
-		realPath: string,
-		path: string,
 	): Promise<void> {
-		this.inFlight.add(path);
-		try {
-			const fullPath = adapter.getFullPath(path);
-			const exists = await adapter._exists(fullPath, path).catch(() => false);
-			if (exists) {
-				this.hiddenPaths.add(path);
-				await this.showFile(adapter, path).catch(() => {});
-				return;
-			}
-			this.hiddenPaths.delete(path);
-			return original(realPath, path);
-		} finally {
-			this.inFlight.delete(path);
-		}
+		this.batchScheduled = false;
+		if (this.pendingBatch.size === 0) return;
+		const batch = [...this.pendingBatch.entries()];
+		this.pendingBatch.clear();
+
+		await Promise.all(
+			batch.map(async ([path, realPath]) => {
+				try {
+					const fullPath = adapter.getFullPath(path);
+					const exists = await adapter._exists(fullPath, path).catch(() => false);
+					if (exists) {
+						this.hiddenPaths.add(path);
+						await this.showFile(adapter, path).catch(() => {});
+					} else {
+						this.hiddenPaths.delete(path);
+						await original(realPath, path).catch(() => {});
+					}
+				} finally {
+					this.inFlight.delete(path);
+				}
+			}),
+		);
 	}
 
 	private unpatchAdapter(): void {
