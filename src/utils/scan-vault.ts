@@ -5,7 +5,7 @@ import { matchesPattern } from "./pattern-match";
 
 export async function buildFileTree(app: App, settings: TurboSettings): Promise<FolderNode> {
 	const exts = new Set(settings.fileExtensions.map((e) => e.toLowerCase()));
-	let fileNodes = buildFromVaultIndex(app, exts, settings.showHiddenFolders);
+	let fileNodes = buildFromVaultIndex(app, exts);
 
 	fileNodes = fileNodes.filter((node) => !isHidden(node.name, node.path, settings.hidePatterns));
 
@@ -14,18 +14,15 @@ export async function buildFileTree(app: App, settings: TurboSettings): Promise<
 	}
 
 	const root = assembleTree(fileNodes, settings);
-	console.debug(
-		`[turbo-workflow] ${fileNodes.length} matched file(s)` +
-			` (extensions: ${[...exts].join(", ")}, showHidden: ${settings.showHiddenFolders})`,
-	);
+	console.debug(`[turbo-workflow] ${fileNodes.length} matched file(s) (extensions: ${[...exts].join(", ")})`);
 	return root;
 }
 
-function buildFromVaultIndex(app: App, exts: Set<string>, includeHidden: boolean): FileNode[] {
+function buildFromVaultIndex(app: App, exts: Set<string>): FileNode[] {
 	const nodes: FileNode[] = [];
 	for (const f of app.vault.getFiles()) {
 		if (!exts.has(f.extension.toLowerCase())) continue;
-		if (!includeHidden && hasHiddenSegment(f.path)) continue;
+		if (hasHiddenSegment(f.path)) continue;
 		nodes.push({ kind: "file", name: f.name, path: f.path, file: f });
 	}
 	return nodes;

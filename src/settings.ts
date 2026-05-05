@@ -10,7 +10,6 @@ export type CollapseMode = "manual" | "cascade" | "accordion";
 export interface TurboSettings {
 	// Core panel settings
 	fileExtensions: string[];
-	showHiddenFolders: boolean;
 	sortOrder: SortOrder;
 	openOnSingleClick: boolean;
 	showInLeftSidebar: boolean;
@@ -31,7 +30,6 @@ export interface TurboSettings {
 
 export const DEFAULT_SETTINGS: TurboSettings = {
 	fileExtensions: [...DEFAULT_EXTENSIONS],
-	showHiddenFolders: false,
 	sortOrder: "name-asc",
 	openOnSingleClick: false,
 	showInLeftSidebar: false,
@@ -97,7 +95,6 @@ export class TurboSettingTab extends PluginSettingTab {
 		containerEl.empty();
 		this.renderPanelSection(containerEl);
 		this.renderPanelFilterSection(containerEl);
-		this.renderHiddenFilesSection(containerEl);
 		this.renderNativeExplorerSection(containerEl);
 		this.renderIconSection(containerEl);
 		this.renderCodeEmitterSection(containerEl);
@@ -248,37 +245,7 @@ export class TurboSettingTab extends PluginSettingTab {
 	}
 
 	// ──────────────────────────────────────────────────────────────
-	// 3. Hidden files — vault-wide; affects both the panel and the
-	//    native explorer (patches Obsidian's vault index)
-	// ──────────────────────────────────────────────────────────────
-	private renderHiddenFilesSection(el: HTMLElement): void {
-		new Setting(el).setName("Hidden files").setHeading();
-
-		const configDir = this.app.vault.configDir;
-		new Setting(el)
-			.setName("Show hidden files and folders")
-			.setDesc(
-				`Surface dotfolders (such as ${configDir}) into Obsidian's vault index so they appear in the panel and the native explorer, and open/edit/rename like normal files. ` +
-					".git, .venv, .hg, and .svn are always excluded to prevent corruption.",
-			)
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.showHiddenFolders)
-					.onChange(async (value) => {
-						this.plugin.settings.showHiddenFolders = value;
-						await this.plugin.saveSettings();
-						if (value) {
-							this.plugin.hiddenFilesPatcher.enable();
-						} else {
-							this.plugin.hiddenFilesPatcher.disable();
-						}
-						this.plugin.refreshOfficeFilesView();
-					}),
-			);
-	}
-
-	// ──────────────────────────────────────────────────────────────
-	// 4. Native file explorer enhancements
+	// 3. Native file explorer enhancements
 	// ──────────────────────────────────────────────────────────────
 	private renderNativeExplorerSection(el: HTMLElement): void {
 		new Setting(el).setName("Native file explorer").setHeading();
@@ -322,7 +289,7 @@ export class TurboSettingTab extends PluginSettingTab {
 	}
 
 	// ──────────────────────────────────────────────────────────────
-	// 5. Per-extension icon overrides
+	// 4. Per-extension icon overrides
 	// ──────────────────────────────────────────────────────────────
 	private renderIconSection(el: HTMLElement): void {
 		new Setting(el).setName("Extension icons").setHeading();
@@ -335,7 +302,7 @@ export class TurboSettingTab extends PluginSettingTab {
 	}
 
 	// ──────────────────────────────────────────────────────────────
-	// 6. Code emitter — run code blocks inline
+	// 5. Code emitter — run code blocks inline
 	// ──────────────────────────────────────────────────────────────
 	private renderCodeEmitterSection(el: HTMLElement): void {
 		new Setting(el).setName("Code emitter").setHeading();

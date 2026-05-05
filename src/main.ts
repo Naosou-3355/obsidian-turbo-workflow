@@ -2,7 +2,6 @@ import { Plugin, debounce } from "obsidian";
 import { DEFAULT_SETTINGS, TurboSettings, TurboSettingTab } from "./settings";
 import { OfficeFilesView } from "./ui/office-files-view";
 import { NativeExplorerEnhancer } from "./ui/native-explorer";
-import { HiddenFilesPatcher } from "./utils/vault-hidden-files";
 import { registerCommands } from "./commands";
 import { registerCodeEmitter } from "./code-emitter";
 import {
@@ -15,13 +14,11 @@ export default class TurboPlugin extends Plugin {
 	settings!: TurboSettings;
 	refreshOfficeFilesView!: () => void;
 	nativeExplorer!: NativeExplorerEnhancer;
-	hiddenFilesPatcher!: HiddenFilesPatcher;
 
 	async onload(): Promise<void> {
 		await this.loadSettings();
 
 		this.nativeExplorer = new NativeExplorerEnhancer(this.app, this);
-		this.hiddenFilesPatcher = new HiddenFilesPatcher(this.app);
 
 		this.refreshOfficeFilesView = debounce(
 			() => {
@@ -48,9 +45,6 @@ export default class TurboPlugin extends Plugin {
 			if (this.settings.enableNativeExplorerEnhancements) {
 				this.nativeExplorer.enable();
 			}
-			if (this.settings.showHiddenFolders) {
-				this.hiddenFilesPatcher.enable();
-			}
 
 			this.registerEvent(this.app.vault.on("create", () => this.refreshOfficeFilesView()));
 			this.registerEvent(this.app.vault.on("delete", () => this.refreshOfficeFilesView()));
@@ -58,7 +52,6 @@ export default class TurboPlugin extends Plugin {
 		});
 
 		this.register(() => this.nativeExplorer.disable());
-		this.register(() => this.hiddenFilesPatcher.disable());
 	}
 
 	onunload(): void {
