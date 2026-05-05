@@ -1,7 +1,6 @@
 import { Plugin, debounce } from "obsidian";
 import { DEFAULT_SETTINGS, TurboSettings, TurboSettingTab } from "./settings";
 import { OfficeFilesView } from "./ui/office-files-view";
-import { NativeExplorerEnhancer } from "./ui/native-explorer";
 import { registerCommands } from "./commands";
 import { registerCodeEmitter } from "./code-emitter";
 import {
@@ -13,12 +12,9 @@ import {
 export default class TurboPlugin extends Plugin {
 	settings!: TurboSettings;
 	refreshOfficeFilesView!: () => void;
-	nativeExplorer!: NativeExplorerEnhancer;
 
 	async onload(): Promise<void> {
 		await this.loadSettings();
-
-		this.nativeExplorer = new NativeExplorerEnhancer(this.app, this);
 
 		this.refreshOfficeFilesView = debounce(
 			() => {
@@ -42,16 +38,10 @@ export default class TurboPlugin extends Plugin {
 		registerCodeEmitter(this);
 
 		this.app.workspace.onLayoutReady(() => {
-			if (this.settings.enableNativeExplorerEnhancements) {
-				this.nativeExplorer.enable();
-			}
-
 			this.registerEvent(this.app.vault.on("create", () => this.refreshOfficeFilesView()));
 			this.registerEvent(this.app.vault.on("delete", () => this.refreshOfficeFilesView()));
 			this.registerEvent(this.app.vault.on("rename", () => this.refreshOfficeFilesView()));
 		});
-
-		this.register(() => this.nativeExplorer.disable());
 	}
 
 	onunload(): void {

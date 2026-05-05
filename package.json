@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-turbo-workflow",
-	"version": "2.0.8",
+	"version": "2.0.9",
 	"description": "Browse and filter Office files, run code blocks, enhance the native explorer with hide/pin rules and collapse modes.",
 	"main": "main.js",
 	"type": "module",

@@ -103,7 +103,6 @@ export class OfficeFilesView extends ItemView {
 				totalFiles: this.app.vault.getFiles().length,
 				extensions: this.plugin.settings.fileExtensions,
 			},
-			this.plugin.settings,
 		);
 	}
 

@@ -1,5 +1,4 @@
 import { setIcon } from "obsidian";
-import { TurboSettings } from "../settings";
 import { FileNode, FolderNode, TreeNode } from "../types";
 
 export interface TreeHandlers {
@@ -16,7 +15,6 @@ export function renderTree(
 	root: FolderNode,
 	handlers: TreeHandlers,
 	diagnostics: { totalFiles: number; extensions: string[] },
-	settings: Pick<TurboSettings, "extensionIcons">,
 ): void {
 	container.empty();
 	if (root.children.length === 0) {
@@ -38,7 +36,7 @@ export function renderTree(
 		.map((c) => c.path);
 
 	for (const child of root.children) {
-		renderNode(container, child, siblingFolderPaths, handlers, settings);
+		renderNode(container, child, siblingFolderPaths, handlers);
 	}
 }
 
@@ -47,12 +45,11 @@ function renderNode(
 	node: TreeNode,
 	siblingFolderPaths: string[],
 	handlers: TreeHandlers,
-	settings: Pick<TurboSettings, "extensionIcons">,
 ): void {
 	if (node.kind === "folder") {
-		renderFolder(parent, node, siblingFolderPaths, handlers, settings);
+		renderFolder(parent, node, siblingFolderPaths, handlers);
 	} else {
-		renderFile(parent, node, handlers, settings);
+		renderFile(parent, node, handlers);
 	}
 }
 
@@ -61,7 +58,6 @@ function renderFolder(
 	folder: FolderNode,
 	siblingFolderPaths: string[],
 	handlers: TreeHandlers,
-	settings: Pick<TurboSettings, "extensionIcons">,
 ): void {
 	const collapsed = handlers.isCollapsed(folder.path);
 
@@ -92,7 +88,7 @@ function renderFolder(
 		.map((c) => c.path);
 
 	for (const child of folder.children) {
-		renderNode(childrenEl, child, childSiblingPaths, handlers, settings);
+		renderNode(childrenEl, child, childSiblingPaths, handlers);
 	}
 }
 
@@ -100,7 +96,6 @@ function renderFile(
 	parent: HTMLElement,
 	node: FileNode,
 	handlers: TreeHandlers,
-	settings: Pick<TurboSettings, "extensionIcons">,
 ): void {
 	const row = parent.createDiv({ cls: "turbo-file" });
 	if (handlers.isSelected(node.path)) row.addClass("is-active");
@@ -109,8 +104,7 @@ function renderFile(
 	const iconEl = row.createSpan({ cls: "turbo-file-icon" });
 	const lastDot = node.name.lastIndexOf(".");
 	const ext = lastDot >= 0 ? node.name.slice(lastDot + 1).toLowerCase() : "";
-	const customIcon = settings.extensionIcons[ext];
-	setIcon(iconEl, customIcon !== undefined ? customIcon : iconForExtension(ext));
+	setIcon(iconEl, iconForExtension(ext));
 
 	if (node.pinned) {
 		const pinEl = row.createSpan({ cls: "turbo-pin-indicator" });

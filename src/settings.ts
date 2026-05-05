@@ -2,7 +2,6 @@ import { App, PluginSettingTab, Setting } from "obsidian";
 import TurboPlugin from "./main";
 import { HideRule, PinRule } from "./types";
 import { DEFAULT_EXTENSIONS, MAX_EXTENSIONS } from "./utils/constants";
-import { renderIconSettings } from "./ui/icon-settings";
 
 export type SortOrder = "name-asc" | "name-desc" | "ext-asc";
 export type CollapseMode = "manual" | "cascade" | "accordion";
@@ -18,11 +17,6 @@ export interface TurboSettings {
 	pinnedPaths: PinRule[];
 	// Collapse mode (custom panel)
 	collapseMode: CollapseMode;
-	// Native file explorer enhancements
-	enableNativeExplorerEnhancements: boolean;
-	nativeHidePatterns: HideRule[];
-	// Extension icons
-	extensionIcons: Record<string, string>;
 	// Code emitter
 	codeEmitterEnabled: boolean;
 	codeEmitterRemoteEnabled: boolean;
@@ -36,9 +30,6 @@ export const DEFAULT_SETTINGS: TurboSettings = {
 	hidePatterns: [],
 	pinnedPaths: [],
 	collapseMode: "manual",
-	enableNativeExplorerEnhancements: false,
-	nativeHidePatterns: [],
-	extensionIcons: {},
 	codeEmitterEnabled: false,
 	codeEmitterRemoteEnabled: false,
 };
@@ -95,8 +86,6 @@ export class TurboSettingTab extends PluginSettingTab {
 		containerEl.empty();
 		this.renderPanelSection(containerEl);
 		this.renderPanelFilterSection(containerEl);
-		this.renderNativeExplorerSection(containerEl);
-		this.renderIconSection(containerEl);
 		this.renderCodeEmitterSection(containerEl);
 	}
 
@@ -245,64 +234,7 @@ export class TurboSettingTab extends PluginSettingTab {
 	}
 
 	// ──────────────────────────────────────────────────────────────
-	// 3. Native file explorer enhancements
-	// ──────────────────────────────────────────────────────────────
-	private renderNativeExplorerSection(el: HTMLElement): void {
-		new Setting(el).setName("Native file explorer").setHeading();
-
-		new Setting(el)
-			.setName("Enable enhancements")
-			.setDesc(
-				"Apply hide rules to Obsidian's built-in file explorer.",
-			)
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.enableNativeExplorerEnhancements)
-					.onChange(async (value) => {
-						this.plugin.settings.enableNativeExplorerEnhancements = value;
-						await this.plugin.saveSettings();
-						if (value) {
-							this.plugin.nativeExplorer.enable();
-						} else {
-							this.plugin.nativeExplorer.disable();
-						}
-					}),
-			);
-
-		new Setting(el)
-			.setName("Hide patterns")
-			.setDesc(
-				"Files and folders matching these patterns are hidden in the built-in explorer. Same format as panel hide patterns.",
-			)
-			.addTextArea((text) => {
-				text
-					.setPlaceholder(`*.json\npath:${this.app.vault.configDir}/*`)
-					.setValue(serializePatternRules(this.plugin.settings.nativeHidePatterns))
-					.onChange(async (value) => {
-						this.plugin.settings.nativeHidePatterns = parsePatternRules(value);
-						await this.plugin.saveSettings();
-						this.plugin.nativeExplorer.refresh();
-					});
-				text.inputEl.rows = 4;
-				text.inputEl.cols = 40;
-			});
-	}
-
-	// ──────────────────────────────────────────────────────────────
-	// 4. Per-extension icon overrides
-	// ──────────────────────────────────────────────────────────────
-	private renderIconSection(el: HTMLElement): void {
-		new Setting(el).setName("Extension icons").setHeading();
-		new Setting(el)
-			.setName("Custom icon mapping")
-			.setDesc(
-				"Set a custom icon name for each file extension. Leave blank to use the built-in icon.",
-			);
-		renderIconSettings(el, this.plugin);
-	}
-
-	// ──────────────────────────────────────────────────────────────
-	// 5. Code emitter — run code blocks inline
+	// 3. Code emitter — run code blocks inline
 	// ──────────────────────────────────────────────────────────────
 	private renderCodeEmitterSection(el: HTMLElement): void {
 		new Setting(el).setName("Code emitter").setHeading();
